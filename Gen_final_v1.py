@@ -1,3 +1,4 @@
+# encoding:UTF-8
 """
 This model only disentangles pid from wid inside the IdentityEncoder, which is the most crucial part
 """
@@ -31,21 +32,18 @@ class GenModel():
         self.Tensor = torch.cuda.FloatTensor if opt.cuda_on else torch.Tensor
         # define tensors
         self.input_A = self.Tensor(opt.batchSize, opt.image_channel_size,
-                                   opt.image_size, opt.image_size)
+                                   opt.image_size, opt.image_size)            # （16,3,256,256）  一张图片
         self.input_B = self.Tensor(opt.batchSize, opt.pred_length, opt.image_channel_size,
-                                   opt.image_size, opt.image_size)
-        self.input_video = self.Tensor(opt.batchSize, opt.sequence_length + 1, opt.image_channel_size,
-                                   opt.image_size, opt.image_size)
-        self.input_audio = self.Tensor(opt.batchSize, opt.sequence_length + 1, 1,
-                                       opt.mfcc_length, opt.mfcc_width)
+                                   opt.image_size, opt.image_size)            # （16,12,3,256,256）  12张图片
+        
         self.B_audio = self.Tensor(opt.batchSize, opt.pred_length, 1,
-                                       opt.mfcc_length, opt.mfcc_width)
+                                       opt.mfcc_length, opt.mfcc_width)       # （16,12,1,20,12）    12段音频
         self.input_video_dis = self.Tensor(opt.batchSize, opt.disfc_length , opt.image_channel_size,
-                                   opt.image_size, opt.image_size)
+                                   opt.image_size, opt.image_size)            # （16,20,3,256,256）  20张图片
         self.video_pred_data = self.Tensor(opt.batchSize, opt.pred_length, opt.image_channel_size,
-                                   opt.image_size, opt.image_size)
+                                   opt.image_size, opt.image_size)            # （16,12,3,256,256）  12张图片
         self.audio_pred_data = self.Tensor(opt.batchSize, opt.pred_length, 1,
-                                   opt.image_size, opt.image_size)
+                                   opt.image_size, opt.image_size)            # （16,12,1,20,12）    12段音频
 
         self.ID_encoder = IdentityEncoder.IdentityEncoder()
 
@@ -134,39 +132,45 @@ class GenModel():
     def name(self):
         return 'GenModel'
 
+    ''' 
+        input:data, input_label:data_lable  设置输入数据 
+        data 中含有的数据：
+            video: 图片序列
+            mfcc20: 音频序列
+    '''
     def set_input(self, input, input_label):
-        input_video = input['video']
+        input_video = input['video']    
         input_audio = input['mfcc20']
         self.input_label = input_label.cuda()
-        dis_select_start = random.randint(0, 25 - self.opt.disfc_length - 1)
-        A_select = random.randint(0, 28)
-        pred_start = random.randint(0, 1)
-        input_A = input_video[:, A_select, :, :, :].contiguous()
-        input_video_dis = input_video[:, dis_select_start:dis_select_start + self.opt.disfc_length, :, :, :]
-        video_pred_data = input_video[:, pred_start:pred_start + self.opt.pred_length * 2:2, :, :, :]
-        audio_pred_data = input_audio[:, pred_start:pred_start + self.opt.pred_length * 2:2, :, :, :]
+        dis_select_start = random.randint(0, 25 - self.opt.disfc_length - 1)      # 产生随机整数 [0,4]
+        A_select = random.randint(0, 28)            # [0,28]   
+        pred_start = random.randint(0, 1)           # [0,1]
+        input_A = input_video[:, A_select, :, :, :].contiguous()       # 在每个视屏中随机挑选 A_select 张图片
+        input_video_dis = input_video[:, dis_select_start:dis_select_start + self.opt.disfc_length, :, :, :]   # 挑选 20 张图片
+        video_pred_data = input_video[:, pred_start:pred_start + self.opt.pred_length * 2:2, :, :, :]        # 每隔一张抽取一张图片 共12张
+        audio_pred_data = input_audio[:, pred_start:pred_start + self.opt.pred_length * 2:2, :, :, :]        # 抽取 音频文件  共12张 
         self.input_A.resize_(input_A.size()).copy_(input_A)
         self.input_video_dis.resize_(input_video_dis.size()).copy_(input_video_dis)
         self.video_pred_data.resize_(video_pred_data.size()).copy_(video_pred_data)
         self.audio_pred_data.resize_(audio_pred_data.size()).copy_(audio_pred_data)
         self.image_paths = input['A_path']
-
+        
     def forward(self):
 
         self.input_label = Variable(self.input_label)
         self.real_A = Variable(self.input_A)
-        B_start = random.randint(0, self.opt.pred_length - self.opt.sequence_length)
+        B_start = random.randint(0, self.opt.pred_length - self.opt.sequence_length)        # 随机整数 [0, 12-6]
         self.audios_dis = Variable(self.audio_pred_data)
         self.video_dis = Variable(self.video_pred_data)
         # real_videos are the frames used for training generation,
-        self.real_videos = Variable(self.video_pred_data[:, B_start:B_start + self.opt.sequence_length, :, :, :].contiguous())
-        self.audios = Variable(self.audio_pred_data[:, B_start:B_start + self.opt.sequence_length, :, :, :].contiguous())
+        self.real_videos = Variable(self.video_pred_data[:, B_start:B_start + self.opt.sequence_length, :, :, :].contiguous()) # 抽取6张图片
+        self.audios = Variable(self.audio_pred_data[:, B_start:B_start + self.opt.sequence_length, :, :, :].contiguous())  #抽取6段音频
         self.video_send_to_disfc = Variable(self.input_video_dis)
-        self.mask = Variable(self.Tensor(self.opt.batchSize, (self.opt.sequence_length) * self.opt.image_channel_size, self.opt.image_size, self.opt.image_size).fill_(0))
-        self.mask[:, :, 170:234, 64:192] = 1
+        self.mask = Variable(self.Tensor(self.opt.batchSize, (self.opt.sequence_length) * self.opt.image_channel_size, self.opt.image_size, self.opt.image_size).fill_(0))  # （16,6*3,256,256）  全0填充
+        self.mask[:, :, 170:234, 64:192] = 1       # 图片 [170:234, 64:192] 填充为 1
         self.mask_ones = Variable(self.Tensor(self.opt.batchSize, self.opt.image_channel_size, self.opt.image_size,
-                                              self.opt.image_size).fill_(1))
-        self.mask_ones[:, :, 170:234, 64:192] = 0
+                                              self.opt.image_size).fill_(1))     # （16,3,256,256） 全 1 填充
+        self.mask_ones[:, :, 170:234, 64:192] = 0  # 图片 [170:234, 64:192] 填充为 0
         self.mfcc_encoder.train()
         self.lip_feature_encoder.train()
 
