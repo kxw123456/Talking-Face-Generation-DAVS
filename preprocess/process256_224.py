@@ -1,3 +1,4 @@
+# encoding:UTF-8
 """
     program to expend the LRW dataset
     seq 0 499 | parallel --eta -j 24 python process256_224.py --word_label {}
@@ -12,13 +13,15 @@ import argparse
 import subprocess
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--word_label', type=int, default=3, help='number of threads')
+
+# word_label 指明当前处理词列表中的哪一个词 范围（0,499）
+parser.add_argument('--word_label', type=int, default=0, help='number of threads')   
 opt = parser.parse_args()
 
 class Config(object):
     def __init__(self):
-        self.main_PATH = "/home/hzhou/data/LRW/lipread_mp4/"
-        self.save_PATH = "/home/hzhou/SSD/new_data2/"
+        self.main_PATH = "/home/hzhou/data/LRW/lipread_mp4/"   #LRW数据集路径
+        self.save_PATH = "/home/hzhou/SSD/new_data2/"          #处理后数据保存路径
         self.image_size = 224
         self.save_size = 228
         self.video_length = 25
@@ -44,7 +47,8 @@ def create_video_folders(main_PATH, name_id):
     return name_id_path
 
 
-def find_three_points(face_points):
+def find_three_points(face_points):         
+    ''' face_points 指的是什么？ '''
     three_points = np.zeros((5, 2))
     three_points[0, :] = face_points[74, :]
     three_points[1, :] = face_points[77, :]
@@ -59,20 +63,22 @@ class ImageLoader256(object):
         self.scale = 2
         self.face_points = face_points
         self.three_points = np.zeros((5, 2))
-        self.crop_height = 134 * self.scale
+        self.crop_height = 134 * self.scale     # 134*2 = 268
         self.crop_width = 134 * self.scale
-        self.crop_center_y_offset = 10 * self.scale
+        self.crop_center_y_offset = 10 * self.scale    #10 * 2 = 20
         self.output_scale = (260, 260)
-        self.ori_scale = (178 * self.scale, 218 * self.scale)
+        self.ori_scale = (178 * self.scale, 218 * self.scale)   # 178*2 = 356    218*2 = 436
         if mode == 'train':
-            self.flip = np.random.randint(0, 2)
-            self.random_x = np.random.randint(-3, 4)
-            self.random_y = np.random.randint(-3, 4)
+            self.flip = np.random.randint(0, 2)          # 随机翻转方向
+            self.random_x = np.random.randint(-3, 4)     # 
+            self.random_y = np.random.randint(-3, 4)     #
 
     def image_loader(self, img):
         self.find_three_points()
         self.M = self.transformation_from_points(self.three_points, self.scale)
-        align_img = cv2.warpAffine(img, self.M, self.ori_scale, borderValue=[127, 127, 127])
+        # 对img做仿射变换，  边界填充 [127 127 127]
+        align_img = cv2.warpAffine(img, self.M, self.ori_scale, borderValue=[127, 127, 127])   
+
         self.l = int(round(self.ori_scale[0] / 2 - self.crop_width / 2))
         self.r = int(round(self.ori_scale[0] / 2 + self.crop_width / 2))
         self.t = int(round(self.ori_scale[1] / 2 - self.crop_height / 2 + self.crop_center_y_offset))
@@ -91,9 +97,9 @@ class ImageLoader256(object):
                   [110, 112],
                   [70, 112],
                   [110, 112],
-                  [90,  150]]
-        points2 = np.array(points) * scale
-        points2 = points2.astype(np.float64)
+                  [90,  150]]                    # points 意义？    等腰三角形
+        points2 = np.array(points) * scale       # 尺度放大   
+        points2 = points2.astype(np.float64)  
         points1 = points1.astype(np.float64)
 
         c1 = np.mean(points1, axis=0)
@@ -104,9 +110,9 @@ class ImageLoader256(object):
         s1 = np.std(points1)
         s2 = np.std(points2)
         points1 /= s1
-        points2 /= s2
+        points2 /= s2               # -均值  /标准差   
 
-        U, S, Vt = np.linalg.svd(np.matmul(points1.T, points2))
+        U, S, Vt = np.linalg.svd(np.matmul(points1.T, points2))      
         R = (np.matmul(U, Vt)).T
         sR = (s2 / s1) * R
         T = c2.reshape(2, 1) - (s2 / s1) * np.matmul(R, c1.reshape(2, 1))
@@ -134,7 +140,7 @@ class ImageLoader256(object):
 
 
 def warp_and_save(M, frame, config=config):
-    a1 = cv2.warpAffine(frame, M, (256, 256), borderValue=[127, 127, 127])
+    a1 = cv2.warpAffine(frame, M, (256, 256), borderValue=[127, 127, 127])    
     croped_a1 = a1[0: config.bottom, config.left: config.right]
     croped_image = cv2.resize(croped_a1, dsize=(config.save_size, config.save_size))
     return croped_image
@@ -156,8 +162,8 @@ def save_transpoints(face_points, M, config=config):
 end = time.time()
 
 face_data_name = "_mouth.txt"
-listnames = config.main_PATH + "LRW_list.txt"
-filenames = "_filenames.txt"
+listnames = config.main_PATH + "LRW_list.txt"     # LRW 词列表文件
+filenames = "_filenames.txt"                      # LRW数据下每个文件夹中 .mp4 文件列表
 train = "train"
 test = "test"
 val = "val"
@@ -176,48 +182,54 @@ for p in range(3):                                    # create path train, val, 
 
 for p in range(3):                                   # test, train, val loop
     total_data_num = 0
-    p_name = p_lists[p]                              # "train"
+    p_name = p_lists[p]                              # "test"
     # dir to save data
-    video_savedir = config.save_PATH + p_lists[p]
+    video_savedir = config.save_PATH + p_lists[p]    # /home/.../data/test
 
-    with open(listnames, 'r') as w:  # read all class names
-        word_names = w.read().splitlines()
+    with open(listnames, 'r') as w:                  # read all class names
+        word_names = w.read().splitlines()           # 词列表
     start = end
-    word_label = opt.word_label                                            # word_label < 500
+    word_label = opt.word_label                      # word_label < 500
     # for word_label in range(2):
 
 
-    ABOUT_dir = create_video_folders(video_savedir, str(word_label))
-    word = word_names[word_label]
-    word_dir = config.main_PATH + word                                             # /home/wyang/Downloads/LRW/lipread_mp4/YOUNG
+    ABOUT_dir = create_video_folders(video_savedir, str(word_label))      # 创建0文件夹  /home/.../data/test/0
+    word = word_names[word_label]                                         # 取第一个单词 ABOUT
+    word_dir = config.main_PATH + word                                    # /home/data2/LRW/ABOUT
+    word_dir_p = os.path.join(word_dir, p_name)                           # /home/data2/LRW/ABOUT/test
+    video_names_dir = os.path.join(word_dir, p_name + filenames)          #/home/data2/LRW/ABOUT/test_filenames.txt
 
-    word_dir_p = os.path.join(word_dir, p_name)                             # /home/wyang/Downloads/LRW/lipread_mp4/YOUNG/val
-    video_names_dir = os.path.join(word_dir, p_name + filenames)            #/home/wyang/Downloads/LRW/lipread_mp4/YOUNG/val_filenames.txt
-    with open(video_names_dir, "r") as v:
+    with open(video_names_dir, "r") as v:            # 获取文件夹下的 .mp4 文件名列表
         video_names = v.read().splitlines()
     video_names.sort()
     vid = 0
     file_list = {}
-    for video in video_names:                               # YOUNG_00023.mp4 loop
+    for video in video_names:                        # ABOUT_000xx.mp4 loop
 
-        video_dir = os.path.join(word_dir_p, video)           # /home/wyang/Downloads/LRW/lipread_mp4/YOUNG/val/YOUNG_00023.mp4
-        facep_dir = video_dir[:-4] + face_data_name    # /home/wyang/Downloads/LRW/lipread_mp4/ABOUT/test/ABOUT_00023_face.txt
+        video_dir = os.path.join(word_dir_p, video)  # /home/data2/LRW/ABOUT/test/ABOUT_000xx.mp4
+
+        # facep_dir 表示什么意义？ 推测：脸部特征点文件 face_points_dir
+        facep_dir = video_dir[:-4] + face_data_name  # /home/data2/LRW/ABOUT/test/ABOUT_00023_mouth.txt
         if os.path.getsize(facep_dir) == 0:
             continue
         else:
             face_data = np.loadtxt(facep_dir)
             s2, _ = np.shape(face_data)
-            if s2 != 29 * 106:
+            if s2 != 29 * 106:                       # 每个视频29帧，106 ？
                 continue
-        ABOUT_00001_dir = create_video_folders(ABOUT_dir, str(vid))     # /home/wyang/Downloads/LRW/new_data/train/0/0
 
-        # create folders for data
+        ABOUT_00001_dir = create_video_folders(ABOUT_dir, str(vid))     # /home/.../data/test/0/0
+
+        # create folders for data  /home/.../data/test/0/0/align_face256
         align_face_dir256 = create_video_folders(ABOUT_00001_dir, "align_face256")
 
+        # /home/.../data/test/0/0/flow256
         flow_dir256 = create_video_folders(ABOUT_00001_dir, "flow256")
 
         # save file idx
-        file_list[vid] = video
+        file_list[vid] = video       # file_list[i] = AOUBT_00001.mp4
+
+        # /home/.../data/test/0/video_look_up_table.csv  记录 pid
         w = csv.writer(open(os.path.join(ABOUT_dir, "video_look_up_table.csv"), "w"))
         for key, val in file_list.items():
             w.writerow([key, val])
@@ -227,10 +239,11 @@ for p in range(3):                                   # test, train, val loop
         Sum_align_face_temp = np.zeros((config.save_size, config.save_size, 3))
         Sum_flow_temp = np.zeros((config.save_size, config.save_size, 3))
         # orig_image_state = os.path.exists(origin_image_dir + "/1.jpg")            # find if origin images have already been saved
+
         cropped_align_state256 = os.path.exists(align_face_dir256 + "/27.jpg")
 
         transpoints256 = []
-        # capture the video
+        # capture the video  读取视频
         capture = cv2.VideoCapture(video_dir)
         if capture.isOpened():
             n = 0
@@ -244,7 +257,7 @@ for p in range(3):                                   # test, train, val loop
                 ret, frame = capture.read()
                 if ret:
 		    
-                    if not cropped_align_state256:
+                    if not cropped_align_state256:     # 没有对齐
                         img256 = Align256.image_loader(frame)
                         cv2.imwrite(os.path.join(align_face_dir256, str(i) + ".jpg"), img256)
                         face2 = cv2.cvtColor(img256, cv2.COLOR_BGR2GRAY)                  # grey scale image
@@ -263,13 +276,14 @@ for p in range(3):                                   # test, train, val loop
 
 
 
-
+            # /home/.../data/test/0/0/M256.npy
             if not os.path.exists(os.path.join(ABOUT_00001_dir, "M256.npy")):
                 np.save(os.path.join(ABOUT_00001_dir, "M256.npy"), M_save256)
-
+            # /home/.../data/test/0/0/transpoints256.npy
             if not os.path.exists(os.path.join(ABOUT_00001_dir, "transpoints256.npy")):
                 np.save(os.path.join(ABOUT_00001_dir, "transpoints256.npy"), transpoints256)
 
+            # /home/.../data/test/0/0/0.wav
             if not os.path.exists(os.path.join(ABOUT_00001_dir, str(vid) + ".wav")):
                 command = ['ffmpeg -i', video_dir,
                             '-f wav -acodec pcm_s16le -ar 16000',
