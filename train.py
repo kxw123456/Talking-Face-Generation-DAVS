@@ -1,3 +1,4 @@
+# coding=utf-8
 import time
 from Options import Config
 from Dataloader.Data_load_sequence import VideoFolder
@@ -22,7 +23,7 @@ writer = SummaryWriter(comment=opt.name)
 train_data_path = os.path.join(opt.main_PATH, 'train')
 train_videoloader = VideoFolder(root=train_data_path, mode='train')
 train_dataloader = DataLoader(train_videoloader, batch_size=opt.batchSize,
-                            shuffle=True, num_workers=opt.num_workers, drop_last=True)
+                            shuffle=True, num_workers=opt.num_workers, drop_last=True)        # train_dataloader 格式
 
 val_data_path = os.path.join(opt.main_PATH, 'val')
 val_videoloader = VideoFolder(root=val_data_path, mode='val')
