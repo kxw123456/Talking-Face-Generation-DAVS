@@ -1,4 +1,4 @@
-# encoding:UTF-8
+# coding=utf-8
 """
 This model only disentangles pid from wid inside the IdentityEncoder, which is the most crucial part
 """
@@ -21,7 +21,7 @@ import network.mfcc_networks as mfcc_networks
 import network.networks as networks
 import util.util as util
 from network import Discriminator_networks as Discriminator_networks
-
+ 
 # opt = Options.Config()
 
 
@@ -33,13 +33,15 @@ class GenModel():
         # define tensors
         self.input_A = self.Tensor(opt.batchSize, opt.image_channel_size,
                                    opt.image_size, opt.image_size)            # （16,3,256,256）  一张图片
-        self.input_B = self.Tensor(opt.batchSize, opt.pred_length, opt.image_channel_size,
-                                   opt.image_size, opt.image_size)            # （16,12,3,256,256）  12张图片
         
+        self.input_B = self.Tensor(opt.batchSize, opt.pred_length, opt.image_channel_size,
+                                   opt.image_size, opt.image_size)            # （16,12,3,256,256）  12张图片  pred_length:num of images used for classification
         self.B_audio = self.Tensor(opt.batchSize, opt.pred_length, 1,
                                        opt.mfcc_length, opt.mfcc_width)       # （16,12,1,20,12）    12段音频
+        
         self.input_video_dis = self.Tensor(opt.batchSize, opt.disfc_length , opt.image_channel_size,
                                    opt.image_size, opt.image_size)            # （16,20,3,256,256）  20张图片
+        
         self.video_pred_data = self.Tensor(opt.batchSize, opt.pred_length, opt.image_channel_size,
                                    opt.image_size, opt.image_size)            # （16,12,3,256,256）  12张图片
         self.audio_pred_data = self.Tensor(opt.batchSize, opt.pred_length, 1,
@@ -137,15 +139,20 @@ class GenModel():
         data 中含有的数据：
             video: 图片序列
             mfcc20: 音频序列
+            A_path ?
+        data_label:
+            w_id ?
+            p_id ?
+            
     '''
     def set_input(self, input, input_label):
         input_video = input['video']    
         input_audio = input['mfcc20']
         self.input_label = input_label.cuda()
-        dis_select_start = random.randint(0, 25 - self.opt.disfc_length - 1)      # 产生随机整数 [0,4]
-        A_select = random.randint(0, 28)            # [0,28]   
-        pred_start = random.randint(0, 1)           # [0,1]
-        input_A = input_video[:, A_select, :, :, :].contiguous()       # 在每个视屏中随机挑选 A_select 张图片
+        dis_select_start = random.randint(0, 25 - self.opt.disfc_length - 1)      # 产生 一个 随机整数 [0,4]
+        A_select = random.randint(0, 28)            # [0,28]   一个
+        pred_start = random.randint(0, 1)           # [0,1]    一个
+        input_A = input_video[:, A_select, :, :, :].contiguous()       # 在每个视频中随机挑选 1 张图片
         input_video_dis = input_video[:, dis_select_start:dis_select_start + self.opt.disfc_length, :, :, :]   # 挑选 20 张图片
         video_pred_data = input_video[:, pred_start:pred_start + self.opt.pred_length * 2:2, :, :, :]        # 每隔一张抽取一张图片 共12张
         audio_pred_data = input_audio[:, pred_start:pred_start + self.opt.pred_length * 2:2, :, :, :]        # 抽取 音频文件  共12张 
@@ -158,14 +165,14 @@ class GenModel():
     def forward(self):
 
         self.input_label = Variable(self.input_label)
-        self.real_A = Variable(self.input_A)
+        self.real_A = Variable(self.input_A)            # 1张 图片
         B_start = random.randint(0, self.opt.pred_length - self.opt.sequence_length)        # 随机整数 [0, 12-6]
         self.audios_dis = Variable(self.audio_pred_data)
         self.video_dis = Variable(self.video_pred_data)
         # real_videos are the frames used for training generation,
         self.real_videos = Variable(self.video_pred_data[:, B_start:B_start + self.opt.sequence_length, :, :, :].contiguous()) # 抽取6张图片
         self.audios = Variable(self.audio_pred_data[:, B_start:B_start + self.opt.sequence_length, :, :, :].contiguous())  #抽取6段音频
-        self.video_send_to_disfc = Variable(self.input_video_dis)
+        self.video_send_to_disfc = Variable(self.input_video_dis)           # 视频-> 判别器
         self.mask = Variable(self.Tensor(self.opt.batchSize, (self.opt.sequence_length) * self.opt.image_channel_size, self.opt.image_size, self.opt.image_size).fill_(0))  # （16,6*3,256,256）  全0填充
         self.mask[:, :, 170:234, 64:192] = 1       # 图片 [170:234, 64:192] 填充为 1
         self.mask_ones = Variable(self.Tensor(self.opt.batchSize, self.opt.image_channel_size, self.opt.image_size,
@@ -202,7 +209,7 @@ class GenModel():
         self.sequence_generation()
 
         # single
-        self.fakes = torch.cat((self.audio_gen_fakes_batch, self.image_gen_fakes_batch), 0)
+        self.fakes = torch.cat((self.audio_gen_fakes_batch, self.image_gen_fakes_batch), 0)     # cat((A,B),0) 按行拼接 A，B
         self.real_one = self.real_videos.view(-1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size)
         self.reals = torch.cat((self.real_one, self.real_one), 0)
         self.audio_reals = torch.cat((self.audios.view(-1, 1, self.opt.mfcc_length, self.opt.mfcc_width),
