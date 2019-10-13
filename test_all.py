@@ -1,3 +1,4 @@
+# coding=utf-8
 import time
 from Options_all import BaseOptions
 from util import util
@@ -31,15 +32,15 @@ path_name = ntpath.basename(opt.test_resume_path)[:-19]               # ./checkp
 web_dir = os.path.join(opt.results_dir, path_name, '%s_%s' % ('test', start_epoch))   # ./result/101_DAVS/test_1
 for i in test_nums:
     A_path = os.path.join(opt.test_A_path, 'test_sample' + str(i) + '.jpg')           # ./demo_images/test_sample1.jpg
-    test_folder = Test_VideoFolder(root=opt.test_root, A_path=A_path, config=opt)     # root = ./0572_0019_0003/video  
+    test_folder = Test_VideoFolder(root=opt.test_root, A_path=A_path, config=opt)     # root = ./0572_0019_0003/video     创建类对象
     test_dataloader = DataLoader(test_folder, batch_size=1,
                                 shuffle=False, num_workers=1)
     model, _, start_epoch = util.load_test_checkpoint(opt.test_resume_path, model)
 
     # inference during test
 
-    for i2, data in enumerate(test_dataloader):
-        if i2 < 5:
+    for i2, data in enumerate(test_dataloader):         
+        if i2 < 5:          # 5？  
             model.set_test_input(data)
             model.test_train()
 
