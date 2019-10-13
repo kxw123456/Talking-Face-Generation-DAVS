@@ -1,3 +1,5 @@
+# coding=utf-8
+''' 用以对齐待处理视频  制作video中的图片 '''
 from __future__ import print_function, division
 import torch.utils.data as data
 from torch.utils.data import Dataset, DataLoader
