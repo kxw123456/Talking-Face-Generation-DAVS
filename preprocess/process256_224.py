@@ -28,13 +28,13 @@ class Config(object):
         self.avg_three_points = np.array([[101.19, 97.79],
                                      [155.24, 97.53],
                                      [126.75, 127.71]])
-        self.eye_avg = (self.avg_three_points[0, :] + self.avg_three_points[1, :]) / 2
-        self.orig_resize = int(256 * self.save_size / (self.eye_avg[1] * 2 + 10))
+        self.eye_avg = (self.avg_three_points[0, :] + self.avg_three_points[1, :]) / 2	# ([128.215,  97.66 ])
+        self.orig_resize = int(256 * self.save_size / (self.eye_avg[1] * 2 + 10))	# 284
         self.top = 5
-        self.bottom = int(self.eye_avg[1] * 2 + 15)
-        self.left = int(self.eye_avg[0] - self.eye_avg[1] - 5)
-        self.right = int(self.eye_avg[0] + self.eye_avg[1] + 5)
-        self.scale = float(self.save_size / (self.eye_avg[1] * 2 + 10))
+        self.bottom = int(self.eye_avg[1] * 2 + 15)			 # 210
+        self.left = int(self.eye_avg[0] - self.eye_avg[1] - 5)		 # 25
+        self.right = int(self.eye_avg[0] + self.eye_avg[1] + 5)          # 230
+        self.scale = float(self.save_size / (self.eye_avg[1] * 2 + 10))  # 1.1104617182933958
 
 config = Config()
 print(config.scale)
@@ -48,7 +48,7 @@ def create_video_folders(main_PATH, name_id):
 
 
 def find_three_points(face_points):         
-    ''' face_points 指的是什么？ '''
+    ''' face_points 指的是什么？   face_points'''
     three_points = np.zeros((5, 2))
     three_points[0, :] = face_points[74, :]
     three_points[1, :] = face_points[77, :]
@@ -60,6 +60,11 @@ def find_three_points(face_points):
 
 class ImageLoader256(object):
     def __init__(self, face_points, mode='train'):
+	'''
+		face_points: 
+			类型：np.array
+			维度：（n,2）    n ： 106
+	''' 
         self.scale = 2
         self.face_points = face_points
         self.three_points = np.zeros((5, 2))
@@ -76,16 +81,17 @@ class ImageLoader256(object):
     def image_loader(self, img):
         self.find_three_points()
         self.M = self.transformation_from_points(self.three_points, self.scale)
+	
         # 对img做仿射变换，  边界填充 [127 127 127]
         align_img = cv2.warpAffine(img, self.M, self.ori_scale, borderValue=[127, 127, 127])   
 
-        self.l = int(round(self.ori_scale[0] / 2 - self.crop_width / 2))
-        self.r = int(round(self.ori_scale[0] / 2 + self.crop_width / 2))
-        self.t = int(round(self.ori_scale[1] / 2 - self.crop_height / 2 + self.crop_center_y_offset))
-        self.d = int(round(self.ori_scale[1] / 2 + self.crop_height / 2 + self.crop_center_y_offset))
-        align_img2 = align_img[self.t:self.d, self.l:self.r, :]
+        self.l = int(round(self.ori_scale[0] / 2 - self.crop_width / 2))    # 44
+        self.r = int(round(self.ori_scale[0] / 2 + self.crop_width / 2))    # 312
+        self.t = int(round(self.ori_scale[1] / 2 - self.crop_height / 2 + self.crop_center_y_offset))   # 104
+        self.d = int(round(self.ori_scale[1] / 2 + self.crop_height / 2 + self.crop_center_y_offset))   # 372
+        align_img2 = align_img[self.t:self.d, self.l:self.r, :]     # [104:372, 44:312]
         # cv2.imwrite('/home/wyang/temp/align_img2.jpg', align_img2)
-        align_img2 = cv2.resize(align_img2, self.output_scale)
+        align_img2 = cv2.resize(align_img2, self.output_scale)      # [260,260,3]
         self.compute_transpoints()
 
         return align_img2
@@ -99,8 +105,8 @@ class ImageLoader256(object):
                   [110, 112],
                   [90,  150]]                    # points 意义？    等腰三角形
         points2 = np.array(points) * scale       # 尺度放大   
-        points2 = points2.astype(np.float64)  
-        points1 = points1.astype(np.float64)
+        points2 = points2.astype(np.float64)        # (5,2)
+        points1 = points1.astype(np.float64)        # (5,2)
 
         c1 = np.mean(points1, axis=0)
         c2 = np.mean(points2, axis=0)
@@ -117,7 +123,7 @@ class ImageLoader256(object):
         sR = (s2 / s1) * R
         T = c2.reshape(2, 1) - (s2 / s1) * np.matmul(R, c1.reshape(2, 1))
         M = np.concatenate((sR, T), axis=1)
-        return M
+        return M        # 维度：（2,3）
 
     def find_three_points(self):
 
@@ -129,9 +135,9 @@ class ImageLoader256(object):
         self.three_points.astype(np.float32)
 
     def compute_transpoints(self):
-        mouth_points_T = np.concatenate((self.face_points.T, np.ones((1, 106))), 0)
-        transmouth = (np.matmul(self.M, mouth_points_T))
-        self.transmouth = transmouth.T
+        mouth_points_T = np.concatenate((self.face_points.T, np.ones((1, 106))), 0)     # 数组拼接  拼接行   维度：(3,106)
+        transmouth = (np.matmul(self.M, mouth_points_T))      # 维度：（2,106）
+        self.transmouth = transmouth.T      # （106,2）
         self.transmouth[:, 0] -= self.l
         self.transmouth[:, 1] -= self.t
         self.transmouth = self.transmouth * self.output_scale[0] / self.crop_height
@@ -141,8 +147,8 @@ class ImageLoader256(object):
 
 def warp_and_save(M, frame, config=config):
     a1 = cv2.warpAffine(frame, M, (256, 256), borderValue=[127, 127, 127])    
-    croped_a1 = a1[0: config.bottom, config.left: config.right]
-    croped_image = cv2.resize(croped_a1, dsize=(config.save_size, config.save_size))
+    croped_a1 = a1[0: config.bottom, config.left: config.right]     # a1[0:210, 25:230]   大小：（210,205）
+    croped_image = cv2.resize(croped_a1, dsize=(config.save_size, config.save_size))    # （228,228）
     return croped_image
 
 
@@ -161,7 +167,7 @@ def save_transpoints(face_points, M, config=config):
 
 end = time.time()
 
-face_data_name = "_mouth.txt"
+face_data_name = "_face.txt"
 listnames = config.main_PATH + "LRW_list.txt"     # LRW 词列表文件
 filenames = "_filenames.txt"                      # LRW数据下每个文件夹中 .mp4 文件列表
 train = "train"
@@ -209,13 +215,13 @@ for p in range(3):                                   # test, train, val loop
         video_dir = os.path.join(word_dir_p, video)  # /home/data2/LRW/ABOUT/test/ABOUT_000xx.mp4
 
         # facep_dir 表示什么意义？ 推测：脸部特征点文件 face_points_dir
-        facep_dir = video_dir[:-4] + face_data_name  # /home/data2/LRW/ABOUT/test/ABOUT_00023_mouth.txt
+        facep_dir = video_dir[:-4] + face_data_name  # /home/data2/LRW/ABOUT/test/ABOUT_00023_face.txt
         if os.path.getsize(facep_dir) == 0:
             continue
         else:
-            face_data = np.loadtxt(facep_dir)
+            face_data = np.loadtxt(facep_dir)       # face_data:维度：（29*106，2）
             s2, _ = np.shape(face_data)
-            if s2 != 29 * 106:                       # 每个视频29帧，106 ？
+            if s2 != 29 * 106:                       # 每个视频29帧，106 ？     
                 continue
 
         ABOUT_00001_dir = create_video_folders(ABOUT_dir, str(vid))     # /home/.../data/test/0/0
@@ -235,12 +241,12 @@ for p in range(3):                                   # test, train, val loop
             w.writerow([key, val])
 
         #
-        prvs1 = np.zeros([config.save_size, config.save_size], dtype=int)         # flow buffer
-        Sum_align_face_temp = np.zeros((config.save_size, config.save_size, 3))
-        Sum_flow_temp = np.zeros((config.save_size, config.save_size, 3))
+        prvs1 = np.zeros([config.save_size, config.save_size], dtype=int)         # flow buffer  （228，228）
+        Sum_align_face_temp = np.zeros((config.save_size, config.save_size, 3))     # （228,228,3）
+        Sum_flow_temp = np.zeros((config.save_size, config.save_size, 3))           # （228,228,3）
         # orig_image_state = os.path.exists(origin_image_dir + "/1.jpg")            # find if origin images have already been saved
 
-        cropped_align_state256 = os.path.exists(align_face_dir256 + "/27.jpg")
+        cropped_align_state256 = os.path.exists(align_face_dir256 + "/27.jpg")  # /home/.../data/test/0/0/align_face256/27.jpg 最后一张图片
 
         transpoints256 = []
         # capture the video  读取视频
@@ -259,7 +265,7 @@ for p in range(3):                                   # test, train, val loop
 		    
                     if not cropped_align_state256:     # 没有对齐
                         img256 = Align256.image_loader(frame)
-                        cv2.imwrite(os.path.join(align_face_dir256, str(i) + ".jpg"), img256)
+                        cv2.imwrite(os.path.join(align_face_dir256, str(i) + ".jpg"), img256)       # /home/.../data/test/0/0/align_face256/i。jpg
                         face2 = cv2.cvtColor(img256, cv2.COLOR_BGR2GRAY)                  # grey scale image
                         flow = 0
                         if (n2 >= 1):
