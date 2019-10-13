@@ -28,7 +28,7 @@ def Test_Outside_Loader(path, A_path, config, require_video=True):
     A_image = A_image.astype(np.float)
     A_image = A_image / 255     # 像素归一化
     A_image = cv2.resize(A_image[crop_x:crop_x + config.image_size, crop_y:crop_y + config.image_size],
-                         (config.image_size, config.image_size))      # [2:258,2:258]     图片大小 256*256
+                         (config.image_size, config.image_size))      # [2:258,2:258]     图片大小不变，x、y各平移2个像素
     if os.path.isdir(path):
 
         k1 = 0
