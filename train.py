@@ -20,7 +20,7 @@ opt = Config().parse()
 
 writer = SummaryWriter(comment=opt.name)
 
-train_data_path = os.path.join(opt.main_PATH, 'train')
+train_data_path = os.path.join(opt.main_PATH, 'train')          # ./data/train
 train_videoloader = VideoFolder(root=train_data_path, mode='train')
 train_dataloader = DataLoader(train_videoloader, batch_size=opt.batchSize,
                             shuffle=True, num_workers=opt.num_workers, drop_last=True)        # train_dataloader 格式
