@@ -1,3 +1,4 @@
+# conding=utf-8
 """
 The test model for generation based on video
 """
@@ -53,7 +54,13 @@ class GenModel():
 
     def name(self):
         return 'GenModel'
-
+    
+    '''
+        设置测试输入：
+            input_A: 目标人物图片
+            input_B: 待转换视频（图片序列）
+            image_paths: 目标图片路径
+    '''
     def set_test_input(self, input):
         AtoB = self.opt.which_direction == 'AtoB'
         input_A = input['A' if AtoB else 'B']
