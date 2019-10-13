@@ -161,8 +161,9 @@ class VideoFolder(Dataset):
             index (int): Index
         Returns:
             tuple: (image, target) where target is class_index of the target class.
+            
         """
-        path, target = self.vids[index]
+        path, target = self.vids[index]         # path：./data/train/0/0     target:0
         vid = self.loader(path, config=self.config, mode=self.mode)
 
         return vid, target
