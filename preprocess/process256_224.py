@@ -78,9 +78,9 @@ class ImageLoader256(object):
             self.random_x = np.random.randint(-3, 4)     # 
             self.random_y = np.random.randint(-3, 4)     #
 
-    def image_loader(self, img):
-        self.find_three_points()
-        self.M = self.transformation_from_points(self.three_points, self.scale)
+    def image_loader(self, img):		 # img (256,256,3)
+        self.find_three_points()		 # 从 face_points 中抽取 5个点，其中两对点重复， 即实际上只有3对不同的点
+        self.M = self.transformation_from_points(self.three_points, self.scale)	 # 计算 仿射变换矩阵 M
 	
         # 对img做仿射变换，  边界填充 [127 127 127]
         align_img = cv2.warpAffine(img, self.M, self.ori_scale, borderValue=[127, 127, 127])   
@@ -89,7 +89,7 @@ class ImageLoader256(object):
         self.r = int(round(self.ori_scale[0] / 2 + self.crop_width / 2))    # 312
         self.t = int(round(self.ori_scale[1] / 2 - self.crop_height / 2 + self.crop_center_y_offset))   # 104
         self.d = int(round(self.ori_scale[1] / 2 + self.crop_height / 2 + self.crop_center_y_offset))   # 372
-        align_img2 = align_img[self.t:self.d, self.l:self.r, :]     # [104:372, 44:312]
+        align_img2 = align_img[self.t:self.d, self.l:self.r, :]     # [104:372, 44:312]    （268，268）
         # cv2.imwrite('/home/wyang/temp/align_img2.jpg', align_img2)
         align_img2 = cv2.resize(align_img2, self.output_scale)      # [260,260,3]
         self.compute_transpoints()
@@ -103,8 +103,8 @@ class ImageLoader256(object):
                   [110, 112],
                   [70, 112],
                   [110, 112],
-                  [90,  150]]                    # points 意义？    等腰三角形
-        points2 = np.array(points) * scale       # 尺度放大   
+                  [90,  150]]                    # points 意义？    等腰三角形 
+        points2 = np.array(points) * scale       # 尺度放大   （140,224）（220,224） （180，300）
         points2 = points2.astype(np.float64)        # (5,2)
         points1 = points1.astype(np.float64)        # (5,2)
 
@@ -264,21 +264,21 @@ for p in range(3):                                   # test, train, val loop
                 if ret:
 		    
                     if not cropped_align_state256:     # 没有对齐
-                        img256 = Align256.image_loader(frame)
+                        img256 = Align256.image_loader(frame)		 # 每帧大小 （256,256,3）
                         cv2.imwrite(os.path.join(align_face_dir256, str(i) + ".jpg"), img256)       # /home/.../data/test/0/0/align_face256/i。jpg
-                        face2 = cv2.cvtColor(img256, cv2.COLOR_BGR2GRAY)                  # grey scale image
+                        face2 = cv2.cvtColor(img256, cv2.COLOR_BGR2GRAY)                  # grey scale image   转为灰度图
                         flow = 0
                         if (n2 >= 1):
-                            flow = cv2.calcOpticalFlowFarneback(prvs2, face2, 0.5, 3, 10, 5, 5, 1.1, 0)
-                            flow = cv2.normalize(flow, None, 0, 255, cv2.NORM_MINMAX)
+                            flow = cv2.calcOpticalFlowFarneback(prvs2, face2, 0.5, 3, 10, 5, 5, 1.1, 0)	 # 计算光流特征
+                            flow = cv2.normalize(flow, None, 0, 255, cv2.NORM_MINMAX)		 	 # 归一化
                             flow = flow.astype(np.uint8)
                             flow = np.concatenate((flow, np.zeros((260, 260, 1))), 2)
-                            cv2.imwrite(os.path.join(flow_dir256, str(i) + ".jpg"), flow)               # save flow files
+                            cv2.imwrite(os.path.join(flow_dir256, str(i) + ".jpg"), flow)               # save flow files  保存光流
                         prvs2 = face2
                         n2 += 1
                         transface256 = Align256.transmouth
                         transpoints256.append(transface256)
-                        M_save256.append(Align256.M)
+                        M_save256.append(Align256.M)		 # 保存 仿射变换矩阵 维度：（2,3）
 
 
 
