@@ -17,24 +17,25 @@ class Discriminator(nn.Module):
 
         kw = 4
         padw = 1
-        self.conv1 = nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw)
+        self.conv1 = nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw)   # input_nc, 64, kernel_size=4,stride = 2,padding = 1
         self.relu = nn.LeakyReLU(0.2, True)
-        self.n_layers = n_layers
+        self.n_layers = n_layers                # 3
         self.use_sigmoid = use_sigmoid
         nf_mult = 1
-        for n in range(1, n_layers):
-            nf_mult_prev = nf_mult
-            nf_mult = min(2**n, 8)
+        for n in range(1, n_layers):        # (1,2)
+            nf_mult_prev = nf_mult          # 1
+            nf_mult = min(2**n, 8)          # (2,4)
             self.add_module('conv2_' + str(n), nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult,
-                          kernel_size=kw, stride=2, padding=padw, bias=use_bias))
-            self.add_module('norm_' + str(n), norm_layer(ndf * nf_mult))
+                          kernel_size=kw, stride=2, padding=padw, bias=use_bias))           # (64, 64*(2,4), 4,2,1)
+            self.add_module('norm_' + str(n), norm_layer(ndf * nf_mult))                    # 正则化
         nf_mult_prev = nf_mult
-        nf_mult = min(2**n_layers, 8)
+        nf_mult = min(2**n_layers, 8)       # 8
 
         self.conv3 = nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult,
                       kernel_size=kw, stride=1, padding=padw, bias=use_bias)
         self.norm3 = norm_layer(ndf * nf_mult)
         self.conv4 = nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)
+        
         self.mfcc_conv1 = nn.Conv2d(int(input_nc / 3), 64, kernel_size=(3, 3),
                              stride=(3, 2), padding=(1, 2), bias=use_bias)
         self.mfcc_bn1 = norm_layer(64)
