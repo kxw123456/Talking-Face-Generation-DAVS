@@ -194,14 +194,14 @@ class GenModel():
         # extract the lip feature
 
         # self.audio_embedding = self.mfcc_encoder.forward(self.audio_A)
-        self.audio_embeddings_dis = self.mfcc_encoder.forward(self.audios_dis)
-        self.lip_embeddings_dis = self.lip_feature_encoder.forward(self.video_dis)
+        self.audio_embeddings_dis = self.mfcc_encoder.forward(self.audios_dis)          # 提取 音频特征
+        self.lip_embeddings_dis = self.lip_feature_encoder.forward(self.video_dis)      # 提取 语音的视频特征
         self.audio_embeddings = self.audio_embeddings_dis[:, B_start:B_start + self.opt.sequence_length].contiguous()
         self.lip_embeddings = self.lip_embeddings_dis[:, B_start:B_start + self.opt.sequence_length].contiguous()
 
-        # loss between audio and lip embedding
-        self.lip_embedding_norm = embedding_utils.l2_norm(self.lip_embeddings_dis.view(-1, 256 * self.opt.pred_length))
-        self.audio_embedding_norm = embedding_utils.l2_norm(self.audio_embeddings_dis.view(-1, 256 * self.opt.pred_length))
+        # loss between audio and lip embedding  计算 音频特征与视频特征之间的距离   及 Lc
+        self.lip_embedding_norm = embedding_utils.l2_norm(self.lip_embeddings_dis.view(-1, 256 * self.opt.pred_length))      # （-1,256*12）
+        self.audio_embedding_norm = embedding_utils.l2_norm(self.audio_embeddings_dis.view(-1, 256 * self.opt.pred_length))  # （-1，256*12）
         self.lip_embeddings_buffer = Variable(self.lip_embedding_norm.data)
         self.EmbeddingL2 = self.L2Contrastive.forward(self.lip_embeddings_buffer, self.audio_embedding_norm)
         # generate fake images
