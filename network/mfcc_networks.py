@@ -22,16 +22,16 @@ class mfcc_encoder(nn.Module):
         self.bn5 = norm_layer(512)
         self.tanh = nn.Tanh()
 
-    def forward(self, x):
-        net1 = self.conv1(x)
+    def forward(self, x):               # x (n, 1, 20, 12)
+        net1 = self.conv1(x)            # (n, 64, 7, 5)
         net1 = self.bn1(net1)
         net1 = self.relu(net1)
 
-        net = self.conv2(net1)
+        net = self.conv2(net1)          # (n, 128, 3, 2)
         net = self.bn2(net)
         net = self.relu(net)
 
-        net = self.conv3(net)
+        net = self.conv3(net)           # (n, 256, 1, 1)
         net = self.bn3(net)
         net = self.relu(net)
 
@@ -79,7 +79,7 @@ class mfcc_encoder_two(nn.Module):
         return net
 
     def forward(self, x):
-        x0 = x.view(-1, 1, self.opt.mfcc_length, self.opt.mfcc_width)
+        x0 = x.view(-1, 1, self.opt.mfcc_length, self.opt.mfcc_width)       # (n, 1, 20, 12)
         net = self._forward(x0)
         net = net.view(x.size(0), -1, 256)
         return net
