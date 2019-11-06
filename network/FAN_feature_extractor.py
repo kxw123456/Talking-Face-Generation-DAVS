@@ -14,7 +14,7 @@ def conv3x3(in_planes, out_planes, strd=1, padding=1, bias=False):
 class ConvBlock(nn.Module):
     def __init__(self, in_planes, out_planes):
         super(ConvBlock, self).__init__()
-        self.bn1 = nn.BatchNorm2d(in_planes)
+        self.bn1 = nn.BatchNorm2d(in_planes)            
         self.conv1 = conv3x3(in_planes, int(out_planes / 2))
         self.bn2 = nn.BatchNorm2d(int(out_planes / 2))
         self.conv2 = conv3x3(int(out_planes / 2), int(out_planes / 4))
@@ -46,7 +46,7 @@ class ConvBlock(nn.Module):
         out3 = F.relu(out3, True)
         out3 = self.conv3(out3)
 
-        out3 = torch.cat((out1, out2, out3), 1)
+        out3 = torch.cat((out1, out2, out3), 1)         # 拼接 通道
 
         if self.downsample is not None:
             residual = self.downsample(residual)
