@@ -72,7 +72,8 @@ class Discriminator(nn.Module):
         net2 = self.conv4(net)
         if self.use_sigmoid:
             net2 = self.sig(net2)
-        net = self.conv6(net[:, :, 19:28, 11:20])
+            
+        net = self.conv6(net[:, :, 19:28, 11:20])           # ???
         net = self.bn6(net)
         net = self.relu(net)
         mfcc_encode = self._modules['mfcc_conv' + str(1)](audio)
@@ -83,10 +84,10 @@ class Discriminator(nn.Module):
 
         net = self.conv9(net)
         net = self.relu(net)
-        net = torch.cat((net, mfcc_encode), dim=1)
+        net = torch.cat((net, mfcc_encode), dim=1)         # 通道维 拼接
         net = net.view(-1, 256 + 512)
-        net = self.fc(net)
-        net = self.fc2(net)
+        net = self.fc(net)                      # Linear(512 + 256, 512)
+        net = self.fc2(net)                     # Linear(512, 1)
         net = self.sig(net)
         return [net2, net]
 
@@ -100,9 +101,9 @@ class discriminator_audio(nn.Module):
         self.sig = nn.Sigmoid()
 
     def forward(self, x):
-        x = x.view(-1, 256)
-        net = self.fc1(x)
-        net = self.fc2(self.relu(net))
+        x = x.view(-1, 256)                 # (n, 256)
+        net = self.fc1(x)                   # (256, 256)
+        net = self.fc2(self.relu(net))      # (256, 1)
         dis = self.sig(net)
         return dis
 
@@ -111,7 +112,7 @@ class ID_fc(nn.Module):
     def __init__(self, config=config):
         super(ID_fc, self).__init__()
         self.config = config
-        self.fc_1 = nn.Linear(config.disfc_length * 256, 500)
+        self.fc_1 = nn.Linear(config.disfc_length * 256, 500)           # Linear(20*256, 500)
         self.fc_2 = nn.Linear(512, config.label_size)
         self.relu = nn.ReLU(True)
         self.sig = nn.Sigmoid()
@@ -121,20 +122,20 @@ class ID_fc(nn.Module):
             self.fc_1.bias.data.zero_()
 
     def forward(self, x):
-        x = x.view(-1, self.config.disfc_length * 256)
-        net = self.fc_1(x)
+        x = x.view(-1, self.config.disfc_length * 256)              # (n, 20*256)
+        net = self.fc_1(x)                                          # (20*256, 500)
         return net
 
-
+# 500
 class ID_dis32(nn.Module):
     def __init__(self, config=config, feature_length=64):
         super(ID_dis32, self).__init__()
         self.feature_length = feature_length
-        self.conv6 = nn.Conv2d(self.feature_length, 1, 3, 2, 1)
-        self.fc = nn.Linear(1024, 128)
+        self.conv6 = nn.Conv2d(self.feature_length, 1, 3, 2, 1)         # Conv2d(in_channel, out_channel, kernel, stride, padding)
+        self.fc = nn.Linear(1024, 128)                                  # (64*64) ---> (32,32)    32*32 = 1024
         self.relu = nn.ReLU(True)
         self.dropout = nn.Dropout(0.5)
-        self.fc_2 = nn.Linear(128 * config.disfc_length, 500)
+        self.fc_2 = nn.Linear(128 * config.disfc_length, 500)           # (128*20, 500)    判别说的是哪个单词
         if not config.resume:
             self.fc_2.weight.data.normal_(0, 0.0001)
             self.fc_2.bias.data.zero_()
@@ -148,19 +149,19 @@ class ID_dis32(nn.Module):
         return net
 
     def forward(self, x, feature=False):
-        x = x.view(-1, self.feature_length, 64, 64)
+        x = x.view(-1, self.feature_length, 64, 64)         # (n, 64, 64, 64)
         net = self._forward(x)
-        net0 = net.view(-1, self.config.disfc_length * 128)
+        net0 = net.view(-1, self.config.disfc_length * 128) # (n, 128 * 20)
         net = self.dropout(net0)
         net = self.fc_2(net)
 
         return net
 
-
+# 500
 class Face_ID_fc(nn.Module):
     def __init__(self, config=config):
         super(Face_ID_fc, self).__init__()
-        self.fc = nn.Linear(256, config.id_label_size)
+        self.fc = nn.Linear(256, config.id_label_size)      # Linear(256, 500)
         self.dropout = nn.Dropout(0.5)
 
     def forward(self, x):
