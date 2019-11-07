@@ -48,7 +48,7 @@ cudnn.benchmark = True
 for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
     epoch_iter = 0
-    for i, (data, label) in enumerate(train_dataloader):
+    for i, (data, label) in enumerate(train_dataloader):            # data:{'video': , 'mfcc20': , 'A_path': , 'B_path': }  label: 对应类
         iter_start_time = time.time()
         total_steps += opt.batchSize
         epoch_iter += opt.batchSize
