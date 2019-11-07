@@ -23,19 +23,19 @@ class mfcc_encoder(nn.Module):
         self.tanh = nn.Tanh()
 
     def forward(self, x):               # x (n, 1, 20, 12)
-        net1 = self.conv1(x)            # (n, 64, 7, 5)
+        net1 = self.conv1(x)            # (n, 64, 7, 7)
         net1 = self.bn1(net1)
         net1 = self.relu(net1)
 
-        net = self.conv2(net1)          # (n, 128, 3, 2)
+        net = self.conv2(net1)          # (n, 128, 4, 4)
         net = self.bn2(net)
         net = self.relu(net)
 
-        net = self.conv3(net)           # (n, 256, 1, 1)
+        net = self.conv3(net)           # (n, 256, 2, 2)
         net = self.bn3(net)
         net = self.relu(net)
 
-        net = self.conv4(net)
+        net = self.conv4(net)           # (n, 512, 1, 1)
         return net
 
 
@@ -51,14 +51,14 @@ class mfcc_encoder_alter(nn.Module):
         self.pool2 = nn.MaxPool2d(1, 2)
         self.conv3 = nn.Conv2d(256, 512, (3, 1), 1, bias=False)
 
-    def forward(self, x):
-        net = self.conv1(x)
-        net = self.relu(self.bn1(net))
-        net = self.pool1(net)
-        net = self.conv2(net)
+    def forward(self, x):               # (n, 1, 20, 12)
+        net = self.conv1(x)             # (n, 64, 6, 1)
+        net = self.relu(self.bn1(net))  
+        net = self.pool1(net)           # (n, 64, 6, 1)
+        net = self.conv2(net)           # (n, 256, 6, 1)
         net = self.relu(self.bn2(net))
-        net = self.pool2(net)
-        net = self.conv3(net)
+        net = self.pool2(net)           # (n, 256, 3, 1)
+        net = self.conv3(net)           # (n, 512, 1, 1)
         return net
 
 
@@ -71,15 +71,15 @@ class mfcc_encoder_two(nn.Module):
         self.fc = nn.Linear(1024, 256)
 
     def _forward(self, x):
-        net1 = self.model1.forward(x)
-        net2 = self.model2.forward(x)
-        net = torch.cat((net1, net2), 1)
-        net = net.view(-1, 1024)
-        net = self.fc(net)
+        net1 = self.model1.forward(x)       # (n, 512, 1, 1)
+        net2 = self.model2.forward(x)       # (n, 512, 1, 1)
+        net = torch.cat((net1, net2), 1)    # (n, 1024, 1, 1)
+        net = net.view(-1, 1024)            # (n, 1024)
+        net = self.fc(net)                  # Linear(1024, 256)         (n, 256)
         return net
 
     def forward(self, x):
         x0 = x.view(-1, 1, self.opt.mfcc_length, self.opt.mfcc_width)       # (n, 1, 20, 12)
-        net = self._forward(x0)
-        net = net.view(x.size(0), -1, 256)
+        net = self._forward(x0)                 # (
+        net = net.view(x.size(0), -1, 256)      # (n, 1, 256)
         return net
