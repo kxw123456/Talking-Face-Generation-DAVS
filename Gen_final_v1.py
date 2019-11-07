@@ -146,9 +146,9 @@ class GenModel():
             
     '''
     def set_input(self, input, input_label):
-        input_video = input['video']    
-        input_audio = input['mfcc20']
-        self.input_label = input_label.cuda()
+        input_video = input['video']                # 25 张图片   
+        input_audio = input['mfcc20']               # 25 段音频特征
+        self.input_label = input_label.cuda()       # 类标签 0~499
         dis_select_start = random.randint(0, 25 - self.opt.disfc_length - 1)      # 产生 一个 随机整数 [0,4]
         A_select = random.randint(0, 28)            # [0,28]   一个
         pred_start = random.randint(0, 1)           # [0,1]    一个
