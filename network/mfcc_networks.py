@@ -80,6 +80,6 @@ class mfcc_encoder_two(nn.Module):
 
     def forward(self, x):
         x0 = x.view(-1, 1, self.opt.mfcc_length, self.opt.mfcc_width)       # (n, 1, 20, 12)
-        net = self._forward(x0)                 # (
+        net = self._forward(x0)                 # (n, 256)
         net = net.view(x.size(0), -1, 256)      # (n, 1, 256)
         return net
