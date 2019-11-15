@@ -12,14 +12,14 @@ def conv3x3(in_planes, out_planes, strd=1, padding=1, bias=False):
 
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_planes, out_planes):
+    def __init__(self, in_planes, out_planes):      # (64, 128)
         super(ConvBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)            
-        self.conv1 = conv3x3(in_planes, int(out_planes / 2))
+        self.conv1 = conv3x3(in_planes, int(out_planes / 2))    # channel/2
         self.bn2 = nn.BatchNorm2d(int(out_planes / 2))
-        self.conv2 = conv3x3(int(out_planes / 2), int(out_planes / 4))
+        self.conv2 = conv3x3(int(out_planes / 2), int(out_planes / 4))  # channel/4
         self.bn3 = nn.BatchNorm2d(int(out_planes / 4))
-        self.conv3 = conv3x3(int(out_planes / 4), int(out_planes / 4))
+        self.conv3 = conv3x3(int(out_planes / 4), int(out_planes / 4))  # chaneel/4
 
         if in_planes != out_planes:
             self.downsample = nn.Sequential(
@@ -31,33 +31,33 @@ class ConvBlock(nn.Module):
         else:
             self.downsample = None
 
-    def forward(self, x):
+    def forward(self, x):      # (-1, 64, 128, 128)
         residual = x
 
         out1 = self.bn1(x)
         out1 = F.relu(out1, True)
-        out1 = self.conv1(out1)
+        out1 = self.conv1(out1)     # (-1, 64, 128, 128)
 
         out2 = self.bn2(out1)
         out2 = F.relu(out2, True)
-        out2 = self.conv2(out2)
+        out2 = self.conv2(out2)     # (-1, 32, 128, 128)
 
         out3 = self.bn3(out2)
         out3 = F.relu(out3, True)
-        out3 = self.conv3(out3)
+        out3 = self.conv3(out3)     # (-1, 32, 128, 128)
 
-        out3 = torch.cat((out1, out2, out3), 1)         # 拼接 通道
+        out3 = torch.cat((out1, out2, out3), 1)         # 拼接 通道 (-1, 64+32+32, 128, 128) (-1, 128, 128, 128)
 
         if self.downsample is not None:
-            residual = self.downsample(residual)
+            residual = self.downsample(residual)        # (-1, 128, 128, 128)
 
         out3 += residual
 
-        return out3
+        return out3         # (-1, 128, 128, 128)
 
 
 class HourGlass(nn.Module):
-    def __init__(self, num_modules, depth, num_features):
+    def __init__(self, num_modules, depth, num_features):   # (1, 4, 256)
         super(HourGlass, self).__init__()
         self.num_modules = num_modules
         self.depth = depth
@@ -78,13 +78,13 @@ class HourGlass(nn.Module):
 
         self.add_module('b3_' + str(level), ConvBlock(256, 256))
 
-    def _forward(self, level, inp):
+    def _forward(self, level, inp):     # (4, (-1, 256, 64, 64)
         # Upper branch
         up1 = inp
         up1 = self._modules['b1_' + str(level)](up1)
         up1 = self.dropout(up1)
         # Lower branch
-        low1 = F.max_pool2d(inp, 2, stride=2)
+        low1 = F.max_pool2d(inp, 2, stride=2)       # ( -1, 256, 32, 32)
         low1 = self._modules['b2_' + str(level)](low1)
 
         if level > 1:
@@ -101,7 +101,7 @@ class HourGlass(nn.Module):
 
         return up1 + up2
 
-    def forward(self, x):
+    def forward(self, x):   # (-1, 256, 64, 64)
         return self._forward(self.depth, x)
 
 
@@ -114,7 +114,7 @@ class FAN_use(nn.Module):
         # Base part
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
         self.bn1 = nn.BatchNorm2d(64)
-        self.conv2 = ConvBlock(64, 128)
+        self.conv2 = ConvBlock(64, 128)     
         self.conv3 = ConvBlock(128, 128)
         self.conv4 = ConvBlock(128, 256)
 
@@ -141,16 +141,16 @@ class FAN_use(nn.Module):
         self.conv6 = nn.Conv2d(68, 1, 3, 2, 1)
         self.fc = nn.Linear(1024, 256)
 
-    def forward(self, x):
-        x = F.relu(self.bn1(self.conv1(x)), True)
-        x = F.max_pool2d(self.conv2(x), 2)
-        x = self.conv3(x)
-        x = self.conv4(x)
+    def forward(self, x):           # (-1, 3, 256, 256)
+        x = F.relu(self.bn1(self.conv1(x)), True)   # (-1, 64, 128, 128)
+        x = F.max_pool2d(self.conv2(x), 2)          # (-1, 128, 128, 128)---->(-1, 128, 64, 64)
+        x = self.conv3(x)                           # (-1, 128, 64, 64)
+        x = self.conv4(x)                           # (-1, 256, 64, 64)
 
-        previous = x
+        previous = x        # (-1, 256, 64, 64)
 
         i = 0
-        hg = self._modules['m' + str(i)](previous)
+        hg = self._modules['m' + str(i)](previous)      # (-1, 
 
         ll = hg
         ll = self._modules['top_m_' + str(i)](ll)
@@ -174,7 +174,7 @@ class FanFusion(nn.Module):
         self.bn1 = nn.BatchNorm2d(68)
         self.relu = nn.ReLU(True)
 
-    def _forward(self, x):
+    def _forward(self, x):          # (-1, 3, 256, 256)
         net = self.model.forward(x)
         net = self.relu(self.bn1(net))
         net = self.conv6(net)
@@ -184,7 +184,7 @@ class FanFusion(nn.Module):
         return net
 
     def forward(self, x):
-        x0 = x.view(-1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size)
+        x0 = x.view(-1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size)      # (-1, 3, 256, 256)
         net = self._forward(x0)
         net = net.view(x.size(0), -1, 256)
         return net
