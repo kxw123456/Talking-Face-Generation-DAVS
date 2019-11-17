@@ -187,4 +187,4 @@ class FanFusion(nn.Module):
         x0 = x.view(-1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size)      # (-1, 3, 256, 256)
         net = self._forward(x0)
         net = net.view(x.size(0), -1, 256)
-        return net
+        return net          # (-1, n, 256)
