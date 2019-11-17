@@ -223,9 +223,9 @@ class GenModel():
 
 
     def sequence_generation(self):
-        self.lip_embeddings = self.lip_embeddings.view(-1, self.opt.sequence_length, self.opt.feature_length)
+        self.lip_embeddings = self.lip_embeddings.view(-1, self.opt.sequence_length, self.opt.feature_length)   # (-1, 6, 256)
         image_gen_fakes = []
-        self.audio_embeddings = self.audio_embeddings.view(-1, self.opt.sequence_length, self.opt.feature_length)
+        self.audio_embeddings = self.audio_embeddings.view(-1, self.opt.sequence_length, self.opt.feature_length)  # (-1, 6, 256)
         audio_gen_fakes = []
         self.last_frame = Variable(self.real_A.data)
         self.G_x_loss = 0
