@@ -37,16 +37,16 @@ class ConvBlock(nn.Module):
                 nn.init.constant(m.weight, 1)
                 nn.init.constant(m.bias, 0)
 
-
-class Decoder(nn.Module):
+# (-1, 256) (-1, 256)  ---->  (-1, 3, 256, 256)
+class Decoder(nn.Module):              
     def __init__(self, opt):
         super(Decoder, self).__init__()
         self.opt = opt
         self.relu = nn.ReLU()
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear')
-        self.deconv1_1_new = nn.ConvTranspose2d(512, 512, (4, 4), 1, 0)
+        self.deconv1_1_new = nn.ConvTranspose2d(512, 512, (4, 4), 1, 0)     # (-1, 512, 4, 4)
         self.deconv1_1_bn = nn.BatchNorm2d(512)
-        self.convblock1 = ConvBlock(512, 512, "1", nums=2)
+        self.convblock1 = ConvBlock(512, 512, "1", nums=2)          
         self.convblock2 = ConvBlock(512, 512, "2", nums=3)
         self.convblock3 = ConvBlock(512, 256, "3", nums=4)
         self.convblock4 = ConvBlock(256 + 160, 256, "4", nums=4)
@@ -58,20 +58,21 @@ class Decoder(nn.Module):
         self.tanh = nn.Tanh()
 
     def forward(self, id_feature, mouth_feature):
-        id_feature0 = id_feature[0].view(-1, self.opt.feature_length, 1, 1)
-        mouth_feature = mouth_feature.view(-1, self.opt.feature_length, 1, 1)
-        whole_feature = torch.cat((id_feature0, mouth_feature), dim=1)
-        net = self.deconv1_1_new(whole_feature)
+        id_feature0 = id_feature[0].view(-1, self.opt.feature_length, 1, 1)             # (-1, 256) ----> (-1, 256, 1, 1)
+        mouth_feature = mouth_feature.view(-1, self.opt.feature_length, 1, 1)           # (-1, 256) ----> (-1, 256, 1, 1)
+        whole_feature = torch.cat((id_feature0, mouth_feature), dim=1)                  # (-1, 512, 1, 1)                 
+        net = self.deconv1_1_new(whole_feature)                 # (-1, 512, 4, 4)
         net = self.relu(self.deconv1_1_bn(net))
         for i in range(6):
             if i == 3:
                 net = torch.cat((id_feature[i], net), 1)
-            net = self._modules['convblock' + str(i + 1)](net)
+            net = self._modules['convblock' + str(i + 1)](net)              # (-1, 512, 4, 4)
             net = self.upsample(net)
-        net = self.conv7_1(net)
+        # (-1, 64, 256, 256)
+        net = self.conv7_1(net)                 # (-1, 32, 256, 256)
         net = self.relu(self.conv7_1_bn(net))
-        net = self.conv7_2(net)
-        net = self.tanh(net)
-        net = (net + 1) / 2.0
-        return net
+        net = self.conv7_2(net)                 # (-1, 3, 256, 256)
+        net = self.tanh(net)                    # net (-1, 1)
+        net = (net + 1) / 2.0                   # net (0, 1)
+        return net                    # (-1, 3, 256, 256)
 
