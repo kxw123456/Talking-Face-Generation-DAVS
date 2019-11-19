@@ -230,7 +230,7 @@ class GenModel():
         self.last_frame = Variable(self.real_A.data)
         self.G_x_loss = 0
         for i in range(self.opt.sequence_length):
-            image_gen_fakes_buffer = self.Decoder(self.real_A_id_embedding, self.lip_embeddings[:, i, :])
+            image_gen_fakes_buffer = self.Decoder(self.real_A_id_embedding, self.lip_embeddings[:, i, :])      # generation one image
             image_gen_fakes.append(image_gen_fakes_buffer.view(-1, 1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size))
             audio_gen_fakes_buffer = self.Decoder(self.real_A_id_embedding, self.audio_embeddings[:, i, :])
             audio_gen_fakes.append(audio_gen_fakes_buffer.view(-1, 1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size))
