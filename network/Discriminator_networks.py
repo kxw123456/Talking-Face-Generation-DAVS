@@ -59,31 +59,31 @@ class Discriminator(nn.Module):
         if use_sigmoid:
             self.sig = nn.Sigmoid()
 
-    def forward(self, input, audio):
-        net = self.conv1(input)
+    def forward(self, input, audio):        # (-1 * 2, 3*6, 256, 256)     (-1*2, 1*6, 20, 12)
+        net = self.conv1(input)             # (-1*2, 64, 128, 128)
         netn = self.relu(net)
         for n in range(1, self.n_layers):
             netn = self._modules['conv2_' + str(n)](netn)
             netn = self._modules['norm_' + str(n)](netn)
-            netn = self.relu(netn)
-        net = self.conv3(netn)
+            netn = self.relu(netn)          # (-1*2, 256, 32, 32)
+        net = self.conv3(netn)          
         net = self.norm3(net)
-        net = self.relu(net)
-        net2 = self.conv4(net)
+        net = self.relu(net)                # (-1*2, 512, 31, 31)
+        net2 = self.conv4(net)              # (-1*2, 1, 30, 30)
         if self.use_sigmoid:
             net2 = self.sig(net2)
             
-        net = self.conv6(net[:, :, 19:28, 11:20])           # ???
+        net = self.conv6(net[:, :, 19:28, 11:20])           # ???     (-1*2, 512, 9, 9)   ----> (-1*2, 512, 7, 7)
         net = self.bn6(net)
-        net = self.relu(net)
+        net = self.relu(net)                # (-1*2, 512, 7, 7)
         mfcc_encode = self._modules['mfcc_conv' + str(1)](audio)
-        mfcc_encode = self._modules['mfcc_bn' + str(1)](mfcc_encode)
+        mfcc_encode = self._modules['mfcc_bn' + str(1)](mfcc_encode)    # (-1*2, 64, 7, 7)      
         for i in range(2, 5):
             mfcc_encode = self._modules['mfcc_conv' + str(i)](mfcc_encode)
-            mfcc_encode = self._modules['mfcc_bn' + str(i)](mfcc_encode)
+            mfcc_encode = self._modules['mfcc_bn' + str(i)](mfcc_encode)        # (-1*2, 256, 1, 1)
 
         net = self.conv9(net)
-        net = self.relu(net)
+        net = self.relu(net)                # (-1*2, 512, 1, 1)
         net = torch.cat((net, mfcc_encode), dim=1)         # 通道维 拼接
         net = net.view(-1, 256 + 512)
         net = self.fc(net)                      # Linear(512 + 256, 512)
