@@ -194,8 +194,8 @@ class GenModel():
         # extract the lip feature
 
         # self.audio_embedding = self.mfcc_encoder.forward(self.audio_A)
-        self.audio_embeddings_dis = self.mfcc_encoder.forward(self.audios_dis)          # 提取 音频特征
-        self.lip_embeddings_dis = self.lip_feature_encoder.forward(self.video_dis)      # 提取 语音的视频特征
+        self.audio_embeddings_dis = self.mfcc_encoder.forward(self.audios_dis)          # 提取 音频特征   (-1, 12, 256)
+        self.lip_embeddings_dis = self.lip_feature_encoder.forward(self.video_dis)      # 提取 语音的视频特征    (-1, 12, 256)
         self.audio_embeddings = self.audio_embeddings_dis[:, B_start:B_start + self.opt.sequence_length].contiguous()
         self.lip_embeddings = self.lip_embeddings_dis[:, B_start:B_start + self.opt.sequence_length].contiguous()
 
@@ -208,14 +208,14 @@ class GenModel():
 
         self.sequence_generation()
 
-        # single
-        self.fakes = torch.cat((self.audio_gen_fakes_batch, self.image_gen_fakes_batch), 0)     # cat((A,B),0) 按行拼接 A，B
+        # single   (batch_size * 6 * 2, 3, 256, 256)
+        self.fakes = torch.cat((self.audio_gen_fakes_batch, self.image_gen_fakes_batch), 0)     # cat((A,B),0) 按行拼接 A，B 
         self.real_one = self.real_videos.view(-1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size)
         self.reals = torch.cat((self.real_one, self.real_one), 0)
         self.audio_reals = torch.cat((self.audios.view(-1, 1, self.opt.mfcc_length, self.opt.mfcc_width),
                                       self.audios.view(-1, 1, self.opt.mfcc_length, self.opt.mfcc_width)), 0)
 
-        # sequence
+        # sequence      (-1, 6 * 3, 256, 256)
         self.fakes_sequence = self.fakes.view(-1, self.opt.image_channel_size * (self.opt.sequence_length), self.opt.image_size, self.opt.image_size)
         self.real_one_sequence = self.real_videos.view(-1, self.opt.image_channel_size * (self.opt.sequence_length), self.opt.image_size, self.opt.image_size)
         self.reals_sequence = self.reals.view(-1, self.opt.image_channel_size * self.opt.sequence_length, self.opt.image_size, self.opt.image_size)
@@ -241,7 +241,7 @@ class GenModel():
                 last_frame = audio_gen_fakes_buffer.data
                 self.last_frame = Variable(last_frame)
 
-        self.image_gen_fakes = torch.cat(image_gen_fakes, 1)
+        self.image_gen_fakes = torch.cat(image_gen_fakes, 1)        # (-1, 6, 3, 256, 256)
 
         self.image_gen_fakes_batch = self.image_gen_fakes.view(-1, self.opt.image_channel_size, self.opt.image_size, self.opt.image_size)
         self.image_gen_fakes = self.image_gen_fakes.view(-1, self.opt.image_channel_size * (self.opt.sequence_length), self.opt.image_size, self.opt.image_size)
@@ -262,8 +262,8 @@ class GenModel():
 
         # train ID_disciminate_fc
 
-        self.lip_pred = self.ID_lip_discriminator(self.sequence_id_embedding.detach())
-        self.CE_loss = self.criterionCE(self.lip_pred, self.input_label) * self.opt.lambda_CE
+        self.lip_pred = self.ID_lip_discriminator(self.sequence_id_embedding.detach())           # 分 500 类
+        self.CE_loss = self.criterionCE(self.lip_pred, self.input_label) * self.opt.lambda_CE    # lambda_CE:1     说的哪个单词
 
         # GAN single fake
         if self.opt.require_single_GAN:
@@ -284,7 +284,7 @@ class GenModel():
             self.loss_D_single = 0
 
 
-        if self.opt.require_sequence_GAN:
+        if self.opt.require_sequence_GAN:       # require_sequence_GAN: True
             # GAN sequence fake
             self.pred_fake_sequence, self.pred_fake_sequence_combine = self.netD_mul.forward(self.fakes_sequence.detach(), self.audio_reals_sequence)
             self.loss_D_sequence_fake = self.criterionGAN_soft(self.pred_fake_sequence, False)
@@ -330,7 +330,7 @@ class GenModel():
 
         # id_discriminator
         self.lip_pred = self.ID_lip_discriminator(self.sequence_id_embedding)
-        self.softmax_loss = self.inv_dis_loss.forward(self.lip_pred) * self.opt.lambda_CE_inv
+        self.softmax_loss = self.inv_dis_loss.forward(self.lip_pred) * self.opt.lambda_CE_inv     # lambda_CE_inv: 1000000
 
         self.lip_acc = self.compute_acc(self.lip_pred)
         # single
@@ -352,7 +352,7 @@ class GenModel():
         else:
             self.loss_G_GAN_sequence = 0
             self.loss_G_GAN_sequence_combine = 0
-
+        # lambda_A: 4,   lambda_B: 8
         self.loss_G_L1_audio = self.criterionL1(self.audio_gen_fakes * 255, self.real_one_sequence * 255) * self.opt.lambda_A + \
                          self.criterionL1(self.audio_gen_fakes * self.mask * 255, self.real_one_sequence * self.mask * 255) * self.opt.lambda_B
         self.loss_G_L1_image = self.criterionL1(self.image_gen_fakes * 255, self.real_one_sequence * 255) * self.opt.lambda_A + \
