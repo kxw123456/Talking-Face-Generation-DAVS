@@ -44,10 +44,10 @@ class ModelFusion(nn.Module):
             self.fc_1.bias.data.zero_()
 
     def forward(self, x):
-        x = x.view(-1, config.pred_length * 256)
-        net = self.fc_1(x)
-        net0 = self.relu(net)
-        net = self.fc_2(net0)
+        x = x.view(-1, config.pred_length * 256)        # (-1, 12*256)
+        net = self.fc_1(x)                              # (-1, 512)
+        net0 = self.relu(net)                           
+        net = self.fc_2(net0)                           # (-1, 500)
         # # net0 = self.dropout(net)
         #
         # dis_feature = self.sig(self.dis(net0))
