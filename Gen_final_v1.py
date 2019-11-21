@@ -251,7 +251,7 @@ class GenModel():
         self.audio_gen_fakes = self.audio_gen_fakes.view(-1, self.opt.image_channel_size * (self.opt.sequence_length), self.opt.image_size, self.opt.image_size)
 
     def backward_dis(self):
-        self.audio_D_real = self.discriminator_audio(self.audio_embeddings_dis.detach())
+        self.audio_D_real = self.discriminator_audio(self.audio_embeddings_dis.detach())    # 可能性 sigmoid (0, 1)
         self.audio_D_fake = self.discriminator_audio(self.lip_embeddings_dis.detach())
         self.image_loss_D_real = self.criterionGAN(self.audio_D_fake, False)
         self.audio_loss_D_real = self.criterionGAN(self.audio_D_real, True)
