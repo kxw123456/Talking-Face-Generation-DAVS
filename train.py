@@ -18,12 +18,12 @@ def to_np(x):
 
 opt = Config().parse()
 
-writer = SummaryWriter(comment=opt.name)
+writer = SummaryWriter(comment=opt.name)        # Speech_reco
 
 train_data_path = os.path.join(opt.main_PATH, 'train')          # ./data/train
 train_videoloader = VideoFolder(root=train_data_path, mode='train')
 train_dataloader = DataLoader(train_videoloader, batch_size=opt.batchSize,
-                            shuffle=True, num_workers=opt.num_workers, drop_last=True)        # train_dataloader 格式
+                            shuffle=True, num_workers=opt.num_workers, drop_last=True)        # train_dataloader 格式  batchsize:16, num_workers:8
 
 val_data_path = os.path.join(opt.main_PATH, 'val')
 val_videoloader = VideoFolder(root=val_data_path, mode='val')
@@ -36,8 +36,8 @@ print('#training images = %d' % len(train_videoloader))
 start_epoch = 0
 total_steps = 0
 model = Gen_Model.GenModel(opt)
-if opt.resume:
-    model, start_step, start_epoch = util.load_checkpoint(opt.resume_path, model)
+if opt.resume:          # true
+    model, start_step, start_epoch = util.load_checkpoint(opt.resume_path, model)       # ./checkpoints/101_DAVS_checkpoint.pth.tar
     total_steps = start_step
 else:
     model = util.load_separately(opt, model)
@@ -45,32 +45,32 @@ visualizer = Visualizer(opt)
 
 cudnn.benchmark = True
 
-for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
+for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):       # 0 ~ 100 + 10000 + 1
     epoch_start_time = time.time()
     epoch_iter = 0
     for i, (data, label) in enumerate(train_dataloader):            # data:{'video': , 'mfcc20': , 'A_path': , 'B_path': }  label: 对应类
         iter_start_time = time.time()
-        total_steps += opt.batchSize
+        total_steps += opt.batchSize            # 16
         epoch_iter += opt.batchSize
         model.set_input(data, label)
         model.optimize_parameters()
         model.TfWriter(writer, total_steps)
 
-        if total_steps % opt.display_freq == 0:
+        if total_steps % opt.display_freq == 0:         # 100
             visualizer.display_current_results(model.get_current_visuals(), epoch)
             model.get_visual_path()
 
-        if total_steps % opt.print_freq == 0:
+        if total_steps % opt.print_freq == 0:           # 100
             errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
             visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             if opt.display_id > 0:
                 visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)
 
-        if epoch_iter % opt.eval_freq == 0:
+        if epoch_iter % opt.eval_freq == 0:             # ？？？
             evaluation(val_dataloader, model, total_steps, writer=writer)
 
-        if total_steps % opt.save_latest_freq == 0:
+        if total_steps % opt.save_latest_freq == 0:     # 1000
             print(opt.name + 'saving the latest model (epoch %d, total_steps %d)' %
                   (epoch, total_steps))
             loss = to_np(model.loss_G)
