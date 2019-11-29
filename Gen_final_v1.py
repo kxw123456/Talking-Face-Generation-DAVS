@@ -419,7 +419,7 @@ class GenModel():
         self.audio_embeddings_dis = self.mfcc_encoder.forward(self.input_audio_data)
         self.lip_embeddings_dis = self.lip_feature_encoder.forward(self.input_image_data)
         self.audio_fusion = self.audio_embeddings_dis.view(-1, int(256 * self.opt.pred_length / 3))
-        self.image_fusion = self.lip_embeddings_dis.view(-1, int(256 * self.opt.pred_length / 3))
+        self.image_fusion = self.lip_embeddings_dis.view(-1, int(256 * self.opt.pred_length / 3))       # (-1, 256*12/3)
         self.audio_fusion_buffer = Variable(self.audio_fusion.data)
         self.image_fusion_buffer = Variable(self.image_fusion.data)
 
