@@ -71,7 +71,7 @@ class ContrastiveLoss(nn.Module):
 
         # compare every diagonal score to scores in its column
         # caption retrieval
-        cost_s = (self.margin + scores - d1).clamp(min=0)
+        cost_s = (self.margin + scores - d1).clamp(min=0)           # clamp: 将输出控制在一定范围内 (min, max)
 
         # clear diagonals
         mask = torch.eye(scores.size(0)) > .5
